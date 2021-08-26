@@ -14,6 +14,10 @@
 #define KEY_S 31
 #define KEY_D 32
 
+#define BTN_LEFT 0x110
+#define BTN_RIGHT 0x111
+#define BTN_MIDDLE 0x112
+
 #define FBIOGET_VSCREENINFO 0x4600
 #define FBIOGET_FSCREENINFO 0x4602
 
@@ -164,6 +168,11 @@ void pop()
     free(temp);
 }
 
+void rectangle_full(int color)
+{
+    memset(fbp, color, fix_info.smem_len);
+}
+
 void rectangle(int x, int y, int w, int h, /* unsigned */ int color)
 {
     /* for (int i = 0; i < h; i++)
@@ -248,7 +257,7 @@ int step()
 
 int game()
 {
-    int ended = 0;
+    int ended = 0, paused = 0;
     for (;;)
     {
         if (read(inputfd, &input, sizeof(input)) > 0 && input.type == 1 && input.value == 1)
@@ -278,11 +287,25 @@ int game()
                     ended = 1;
                 dir = DOWN;
                 break;
+            case BTN_LEFT:
+                if (delay > 2)
+                    delay -= 2;
+                break;
+            case BTN_RIGHT:
+                if (delay < 40)
+                    delay += 2;
+                break;
+            case BTN_MIDDLE:
+                paused = ~paused;
+                break;
             }
+
+        if (paused)
+            continue;
 
         if (ended)
         {
-            rectangle(0, 0, var_info.xres, var_info.yres, 0);
+            rectangle_full(0);
             flush();
         }
 
@@ -298,7 +321,7 @@ int game()
             continue;
         };
 
-        rectangle(0, 0, var_info.xres, var_info.yres, 0);
+        rectangle_full(0);
         rectangle(food.x, food.y, blksize, blksize, 0xFF);
         for (struct lnode *temp = head; temp != NULL; temp = temp->next)
             rectangle(temp->p.x, temp->p.y, blksize, blksize, 0xFF);
@@ -317,6 +340,7 @@ int main()
         printf("Error: cannot open input event device.\n");
         return 1;
     }
+    printf("The input event device was opened successfully.\n");
 
     fbfd = open("/dev/fb0", O_RDWR);
     if (fbfd < 0)
@@ -362,11 +386,14 @@ int main()
         push(start);
         place_food();
         t = times(&tptr);
-        delay = 30;
+        delay = 20;
         dir = RIGHT;
         if (game())
             break;
     }
+
+    rectangle_full(64);
+    flush();
 
     // munmap(fbp, fix_info.smem_len);
     close(fbfd);
