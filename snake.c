@@ -113,7 +113,7 @@ struct input_event
 int blksize;
 int inputfd, fbfd;
 long t, tt, delay;
-unsigned int *fbp;
+unsigned int *fbp, *ret;
 struct tms tptr;
 struct input_event input;
 struct fb_var_screeninfo var_info;
@@ -305,7 +305,7 @@ int game()
 
         if (ended)
         {
-            rectangle_full(0);
+            rectangle_full(64);
             flush();
         }
 
@@ -376,8 +376,10 @@ int main()
 		return 1;
 	} */
 
-    fbp = malloc(fix_info.smem_len);
     blksize = var_info.xres >> 5;
+    fbp = malloc(fix_info.smem_len);
+    ret = malloc(fix_info.smem_len);
+    read(fbfd, ret, fix_info.smem_len);
     for (;;)
     {
         while (head != NULL)
@@ -392,8 +394,7 @@ int main()
             break;
     }
 
-    rectangle_full(64);
-    flush();
+    pwrite(fbfd, ret, fix_info.smem_len, 0);
 
     // munmap(fbp, fix_info.smem_len);
     close(fbfd);
