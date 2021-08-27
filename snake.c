@@ -144,35 +144,6 @@ enum direction
 
 enum direction dir;
 
-void push(struct point p)
-{
-    struct lnode *new = (struct lnode *)malloc(sizeof(struct lnode));
-    new->p = p;
-    new->next = NULL;
-    if (head == NULL)
-    {
-        head = new;
-        tail = new;
-    }
-    else
-    {
-        tail->next = new;
-        tail = new;
-    }
-}
-
-void pop()
-{
-    struct lnode *temp = head;
-    head = head->next;
-    free(temp);
-}
-
-void rectangle_full(int color)
-{
-    memset(fbp, color, fix_info.smem_len);
-}
-
 void rectangle(int x, int y, int w, int h, /* unsigned */ int color)
 {
     /* for (int i = 0; i < h; i++)
@@ -198,6 +169,32 @@ void flush()
     pwrite(fbfd, fbp, fix_info.smem_len, 0);
 }
 
+void push(struct point p)
+{
+    struct lnode *new = (struct lnode *)malloc(sizeof(struct lnode));
+    new->p = p;
+    new->next = NULL;
+    if (head == NULL)
+    {
+        head = new;
+        tail = new;
+    }
+    else
+    {
+        tail->next = new;
+        tail = new;
+    }
+    rectangle(p.x, p.y, blksize, blksize, 0xFF);
+}
+
+void pop()
+{
+    struct lnode *temp = head;
+    head = head->next;
+    rectangle(temp->p.x, temp->p.y, blksize, blksize, 0);
+    free(temp);
+}
+
 void place_food()
 {
     for (;;)
@@ -214,6 +211,7 @@ void place_food()
         if (temp == NULL)
             break;
     }
+    rectangle(food.x, food.y, blksize, blksize, 0xFF);
 }
 
 int step()
@@ -274,12 +272,12 @@ int game()
                 d = input.code;
                 break;
             case BTN_LEFT:
-                if (delay > 2)
-                    delay -= 2;
+                if (delay > 5)
+                    delay -= 5;
                 break;
             case BTN_RIGHT:
                 if (delay < 40)
-                    delay += 2;
+                    delay += 5;
                 break;
             case BTN_MIDDLE:
                 paused = ~paused;
@@ -323,7 +321,7 @@ int game()
 
         if (ended)
         {
-            rectangle_full(64);
+            memset(fbp, 64, fix_info.smem_len);
             flush();
             continue;
         }
@@ -334,10 +332,6 @@ int game()
             continue;
         };
 
-        rectangle_full(0);
-        rectangle(food.x, food.y, blksize, blksize, 0xFF);
-        for (struct lnode *temp = head; temp != NULL; temp = temp->next)
-            rectangle(temp->p.x, temp->p.y, blksize, blksize, 0xFF);
         flush();
 
         // sleep(50);
@@ -395,13 +389,14 @@ int main()
     read(fbfd, ret, fix_info.smem_len);
     for (;;)
     {
+        memset(fbp, 0, fix_info.smem_len);
         while (head != NULL)
             pop();
         struct point start = {.x = blksize << 3, .y = blksize << 3};
         push(start);
         place_food();
         t = times(&tptr);
-        delay = 20;
+        delay = 18;
         dir = RIGHT;
         if (game())
             break;
@@ -411,5 +406,6 @@ int main()
 
     // munmap(fbp, fix_info.smem_len);
     close(fbfd);
+    close(inputfd);
     return 0;
 }
