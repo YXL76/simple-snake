@@ -257,7 +257,7 @@ int step()
 
 int game()
 {
-    int ended = 0, paused = 0;
+    int ended = 0, paused = 0, d = 0;
     for (;;)
     {
         if (read(inputfd, &input, sizeof(input)) > 0 && input.type == 1 && input.value == 1)
@@ -265,27 +265,13 @@ int game()
             {
             case KEY_ESC:
                 return 1;
-            case KEY_W:
-                if (dir == DOWN)
-                    ended = 1;
-                dir = UP;
-                break;
             case KEY_R:
                 return 0;
+            case KEY_W:
             case KEY_A:
-                if (dir == RIGHT)
-                    ended = 1;
-                dir = LEFT;
-                break;
             case KEY_D:
-                if (dir == LEFT)
-                    ended = 1;
-                dir = RIGHT;
-                break;
             case KEY_S:
-                if (dir == UP)
-                    ended = 1;
-                dir = DOWN;
+                d = input.code;
                 break;
             case BTN_LEFT:
                 if (delay > 2)
@@ -303,17 +289,44 @@ int game()
         if (paused)
             continue;
 
+        // sleep
+        tt = times(&tptr);
+        if (tt - t < delay)
+            continue;
+        t = tt;
+
+        switch (d)
+        {
+        case KEY_W:
+            if (dir == DOWN)
+                ended = 1;
+            dir = UP;
+            break;
+        case KEY_A:
+            if (dir == RIGHT)
+                ended = 1;
+            dir = LEFT;
+            break;
+        case KEY_D:
+            if (dir == LEFT)
+                ended = 1;
+            dir = RIGHT;
+            break;
+        case KEY_S:
+            if (dir == UP)
+                ended = 1;
+            dir = DOWN;
+            break;
+        }
+
+        d = 0;
+
         if (ended)
         {
             rectangle_full(64);
             flush();
-        }
-
-        // sleep
-        tt = times(&tptr);
-        if (tt - t < delay || ended)
             continue;
-        t = tt;
+        }
 
         if (step())
         {
