@@ -341,7 +341,7 @@ int game()
 
 int main()
 {
-    inputfd = open("/dev/event0", O_RDONLY);
+    inputfd = open("/dev/event0", O_RDONLY | O_NONBLOCK);
     if (inputfd < 0)
     {
         printf("Error: cannot open input event device.\n");
