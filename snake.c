@@ -257,18 +257,32 @@ int step()
     return 0;
 }
 
+int button_up(int s, int *k)
+{
+    if (s)
+    {
+        *k = 1;
+    }
+    else if (*k == 1)
+    {
+        *k = 0;
+        return 1;
+    }
+    return 0;
+}
+
 int game()
 {
-    int ended = 0, paused = 0, d = 0;
+    int ended = 0, paused = 0, d = 0, l = 0, r = 0, m = 0;
     for (;;)
     {
         if (read(micefd, &mice, sizeof(mice)) > 0)
         {
-            if (mice[0] & 0x1 && delay > 5)
+            if (button_up(mice[0] & 0x1, &l) && delay > 5)
                 delay -= 5;
-            if (mice[0] & 0x2 && delay < 40)
+            if (button_up(mice[0] & 0x2, &r) && delay < 40)
                 delay += 5;
-            if (mice[0] & 0x4)
+            if (button_up(mice[0] & 0x4, &m))
                 paused = ~paused;
         }
 
