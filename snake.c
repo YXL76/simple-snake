@@ -7,6 +7,11 @@
 #include <sys/times.h>
 #include <unistd.h>
 
+typedef unsigned int __u32;
+typedef unsigned short __u16;
+typedef __signed__ int __s32;
+
+// linux/input-event-codes.h
 #define KEY_ESC 1
 #define KEY_W 17
 #define KEY_R 19
@@ -14,16 +19,13 @@
 #define KEY_S 31
 #define KEY_D 32
 
-#define BTN_LEFT 0x110
-#define BTN_RIGHT 0x111
-#define BTN_MIDDLE 0x112
+// #define BTN_LEFT 0x110
+// #define BTN_RIGHT 0x111
+// #define BTN_MIDDLE 0x112
 
+// linux/fb.h
 #define FBIOGET_VSCREENINFO 0x4600
 #define FBIOGET_FSCREENINFO 0x4602
-
-typedef unsigned int __u32;
-typedef unsigned short __u16;
-typedef __signed__ int __s32;
 
 struct fb_bitfield
 {
@@ -102,6 +104,7 @@ struct timeval
     size_t tv_usec; /* Microseconds.  */
 };
 
+// linux/input.h
 struct input_event
 {
     struct timeval time;
@@ -111,11 +114,12 @@ struct input_event
 };
 
 int blksize;
-int inputfd, fbfd;
+int micefd, eventfd, fbfd;
 long t, tt, delay;
+unsigned char mice[3];
 unsigned int *fbp, *ret;
 struct tms tptr;
-struct input_event input;
+struct input_event event;
 struct fb_var_screeninfo var_info;
 struct fb_fix_screeninfo fix_info;
 
@@ -258,8 +262,18 @@ int game()
     int ended = 0, paused = 0, d = 0;
     for (;;)
     {
-        if (read(inputfd, &input, sizeof(input)) > 0 && input.type == 1 && input.value == 1)
-            switch (input.code)
+        if (read(micefd, &mice, sizeof(mice)) > 0)
+        {
+            if (mice[0] & 0x1 && delay > 5)
+                delay -= 5;
+            if (mice[0] & 0x2 && delay < 40)
+                delay += 5;
+            if (mice[0] & 0x4)
+                paused = ~paused;
+        }
+
+        if (read(eventfd, &event, sizeof(event)) > 0 && event.type == 1 && event.value == 1)
+            switch (event.code)
             {
             case KEY_ESC:
                 return 1;
@@ -269,18 +283,7 @@ int game()
             case KEY_A:
             case KEY_D:
             case KEY_S:
-                d = input.code;
-                break;
-            case BTN_LEFT:
-                if (delay > 5)
-                    delay -= 5;
-                break;
-            case BTN_RIGHT:
-                if (delay < 40)
-                    delay += 5;
-                break;
-            case BTN_MIDDLE:
-                paused = ~paused;
+                d = event.code;
                 break;
             }
 
@@ -341,13 +344,23 @@ int game()
 
 int main()
 {
-    inputfd = open("/dev/event0", O_RDONLY | O_NONBLOCK);
-    if (inputfd < 0)
+    // eventfd = open("/dev/input/event0", O_RDONLY | O_NONBLOCK);
+    eventfd = open("/dev/input-event0", O_RDONLY | O_NONBLOCK);
+    if (eventfd < 0)
     {
         printf("Error: cannot open input event device.\n");
         return 1;
     }
     printf("The input event device was opened successfully.\n");
+
+    // micefd = open("/dev/input/mice", O_RDONLY | O_NONBLOCK);
+    micefd = open("/dev/input-mice", O_RDONLY | O_NONBLOCK);
+    if (micefd < 0)
+    {
+        printf("Error: cannot open mice device.\n");
+        return 1;
+    }
+    printf("The mice device was opened successfully.\n");
 
     fbfd = open("/dev/fb0", O_RDWR);
     if (fbfd < 0)
@@ -406,6 +419,7 @@ int main()
 
     // munmap(fbp, fix_info.smem_len);
     close(fbfd);
-    close(inputfd);
+    close(micefd);
+    close(eventfd);
     return 0;
 }
